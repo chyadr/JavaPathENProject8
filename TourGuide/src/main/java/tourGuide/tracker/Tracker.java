@@ -1,10 +1,9 @@
 package tourGuide.tracker;
 
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
+import com.google.common.collect.Lists;
 import org.apache.commons.lang3.time.StopWatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,50 +11,60 @@ import org.slf4j.LoggerFactory;
 import tourGuide.service.TourGuideService;
 import tourGuide.user.User;
 
-public class Tracker extends Thread {
+public class Tracker {
 	private Logger logger = LoggerFactory.getLogger(Tracker.class);
-	private static final long trackingPollingInterval = TimeUnit.MINUTES.toSeconds(5);
-	private final ExecutorService executorService = Executors.newSingleThreadExecutor();
 	private final TourGuideService tourGuideService;
-	private boolean stop = false;
+	private static final int trackerThreads = 50;
+	private final ExecutorService executorService = new ThreadPoolExecutor(trackerThreads, 2000,
+			0L, TimeUnit.MILLISECONDS,
+			new LinkedBlockingQueue<>());
+
 
 	public Tracker(TourGuideService tourGuideService) {
 		this.tourGuideService = tourGuideService;
-		
-		executorService.submit(this);
 	}
 	
 	/**
 	 * Assures to shut down the Tracker thread
 	 */
-	public void stopTracking() {
-		stop = true;
-		executorService.shutdownNow();
-	}
-	
-	@Override
-	public void run() {
+	public void runTracking() {
 		StopWatch stopWatch = new StopWatch();
-		while(true) {
-			if(Thread.currentThread().isInterrupted() || stop) {
-				logger.debug("Tracker stopping");
-				break;
-			}
-			
-			List<User> users = tourGuideService.getAllUsers();
-			logger.debug("Begin Tracker. Tracking " + users.size() + " users.");
-			stopWatch.start();
-			users.forEach(u -> tourGuideService.trackUserLocation(u));
-			stopWatch.stop();
-			logger.debug("Tracker Time Elapsed: " + TimeUnit.MILLISECONDS.toSeconds(stopWatch.getTime()) + " seconds."); 
-			stopWatch.reset();
-			try {
-				logger.debug("Tracker sleeping");
-				TimeUnit.SECONDS.sleep(trackingPollingInterval);
-			} catch (InterruptedException e) {
-				break;
+		System.setProperty("java.util.concurrent.ForkJoinPool.common.parallelism", "50");
+		List<User> users = tourGuideService.getAllUsers();
+		logger.debug("Begin Tracker. Tracking " + users.size() + " users.");
+		stopWatch.start();
+		if(users.size()<trackerThreads){
+			Runnable worker = new TrackerRunnable(users,tourGuideService);
+			executorService.execute(worker);
+		}else{
+			for (List<User> subUsers : Lists.partition(users,users.size()/trackerThreads)) {
+				logger.debug("partition size : " + subUsers.size());
+				Runnable worker = new TrackerRunnable(subUsers,tourGuideService);
+				executorService.execute(worker);
 			}
 		}
-		
+
+		stopWatch.stop();
+
+		executorService.shutdown();
+
+	}
+
+
+}
+
+class TrackerRunnable implements Runnable {
+	private final List<User> users;
+	private final TourGuideService tourGuideService;
+
+	public TrackerRunnable(List<User> users, TourGuideService tourGuideService) {
+		this.users = users;
+		this.tourGuideService = tourGuideService;
+	}
+
+	@Override
+	public void run() {
+		tourGuideService.trackUsersLocation(users);
+
 	}
 }

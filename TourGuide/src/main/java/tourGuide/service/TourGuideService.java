@@ -12,6 +12,7 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
+import com.google.common.collect.Lists;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -47,7 +48,7 @@ public class TourGuideService {
 			logger.debug("Finished initializing users");
 		}
 		tracker = new Tracker(this);
-		addShutDownHook();
+		tracker.runTracking();
 	}
 	
 	public List<UserReward> getUserRewards(User user) {
@@ -55,10 +56,9 @@ public class TourGuideService {
 	}
 	
 	public VisitedLocation getUserLocation(User user) {
-		VisitedLocation visitedLocation = (user.getVisitedLocations().size() > 0) ?
+		return (user.getVisitedLocations().size() > 0) ?
 			user.getLastVisitedLocation() :
 			trackUserLocation(user);
-		return visitedLocation;
 	}
 	
 	public User getUser(String userName) {
@@ -70,13 +70,12 @@ public class TourGuideService {
 	}
 	
 	public void addUser(User user) {
-		if(!internalUserMap.containsKey(user.getUserName())) {
-			internalUserMap.put(user.getUserName(), user);
-		}
+			internalUserMap.putIfAbsent(user.getUserName(), user);
+
 	}
 	
 	public List<Provider> getTripDeals(User user) {
-		int cumulatativeRewardPoints = user.getUserRewards().stream().mapToInt(i -> i.getRewardPoints()).sum();
+		int cumulatativeRewardPoints = user.getUserRewards().stream().mapToInt(UserReward::getRewardPoints).sum();
 		List<Provider> providers = tripPricer.getPrice(tripPricerApiKey, user.getUserId(), user.getUserPreferences().getNumberOfAdults(), 
 				user.getUserPreferences().getNumberOfChildren(), user.getUserPreferences().getTripDuration(), cumulatativeRewardPoints);
 		user.setTripDeals(providers);
@@ -90,23 +89,25 @@ public class TourGuideService {
 		return visitedLocation;
 	}
 
-	public List<Attraction> getNearByAttractions(VisitedLocation visitedLocation) {
-		List<Attraction> nearbyAttractions = new ArrayList<>();
-		for(Attraction attraction : gpsUtil.getAttractions()) {
-			if(rewardsService.isWithinAttractionProximity(attraction, visitedLocation.location)) {
-				nearbyAttractions.add(attraction);
-			}
-		}
-		
-		return nearbyAttractions;
+	public List<VisitedLocation> trackUsersLocation(List<User> users) {
+		List<VisitedLocation> visitedLocations = users.stream().parallel().
+				map(user -> {
+					//logger.debug("getUserLocation starts");
+					VisitedLocation visitedLocation = gpsUtil.getUserLocation(user.getUserId());
+					//logger.debug("getUserLocation ends");
+					user.addToVisitedLocations(visitedLocation);
+					return visitedLocation;
+				} ).collect(Collectors.toList());
+
+		rewardsService.calculateRewards(users);
+
+		return visitedLocations;
 	}
-	
-	private void addShutDownHook() {
-		Runtime.getRuntime().addShutdownHook(new Thread() { 
-		      public void run() {
-		        tracker.stopTracking();
-		      } 
-		    }); 
+
+	public List<Attraction> getNearByAttractions(VisitedLocation visitedLocation) {
+		return gpsUtil.getAttractions().stream().
+				filter(attraction -> rewardsService.isWithinAttractionProximity(attraction, visitedLocation.location))
+				.collect(Collectors.toList());
 	}
 	
 	/**********************************************************************************
