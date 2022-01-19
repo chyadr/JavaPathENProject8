@@ -6,15 +6,19 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 
-import com.google.common.collect.Lists;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-
 import gpsUtil.GpsUtil;
 import gpsUtil.location.Attraction;
 import gpsUtil.location.Location;
 import gpsUtil.location.VisitedLocation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
+
+
+import tourGuide.api.ApiClient;
 import tourGuide.helper.InternalTestHelper;
 import tourGuide.tracker.Tracker;
 import tourGuide.user.User;
@@ -25,14 +29,19 @@ import tripPricer.TripPricer;
 @Service
 public class TourGuideService {
 	private Logger logger = LoggerFactory.getLogger(TourGuideService.class);
-	private final GpsUtil gpsUtil;
+
 	private final RewardsService rewardsService;
 	private final TripPricer tripPricer = new TripPricer();
 	public final Tracker tracker;
-	boolean testMode = true;
-	
-	public TourGuideService(GpsUtil gpsUtil, RewardsService rewardsService) {
+	@Value("${tourguide.testMode:true}")
+	private boolean testMode =true;
+	private final GpsUtil gpsUtil;
+	private final ApiClient apiClient;
+
+
+	public TourGuideService(GpsUtil gpsUtil, ApiClient apiClient, RewardsService rewardsService) {
 		this.gpsUtil = gpsUtil;
+		this.apiClient = apiClient;
 		this.rewardsService = rewardsService;
 		
 		if(testMode) {
@@ -70,14 +79,29 @@ public class TourGuideService {
 	
 	public List<Provider> getTripDeals(User user) {
 		int cumulatativeRewardPoints = user.getUserRewards().stream().mapToInt(UserReward::getRewardPoints).sum();
-		List<Provider> providers = tripPricer.getPrice(tripPricerApiKey, user.getUserId(), user.getUserPreferences().getNumberOfAdults(),
-				user.getUserPreferences().getNumberOfChildren(), user.getUserPreferences().getTripDuration(), cumulatativeRewardPoints);
+
+		List<Provider> providers;
+
+				if(testMode){
+					providers = tripPricer.getPrice(tripPricerApiKey, user.getUserId(), user.getUserPreferences().getNumberOfAdults(),
+							user.getUserPreferences().getNumberOfChildren(), user.getUserPreferences().getTripDuration(), cumulatativeRewardPoints);
+				}else {
+					providers = apiClient.getPrice(tripPricerApiKey, user.getUserId(), user.getUserPreferences().getNumberOfAdults(),
+							user.getUserPreferences().getNumberOfChildren(), user.getUserPreferences().getTripDuration(), cumulatativeRewardPoints);
+				}
+
 		user.setTripDeals(providers);
 		return providers;
 	}
 
 	public VisitedLocation trackUserLocation(User user) {
-		VisitedLocation visitedLocation = gpsUtil.getUserLocation(user.getUserId());
+		VisitedLocation visitedLocation = null ;
+		if (testMode){
+			visitedLocation = gpsUtil.getUserLocation(user.getUserId());
+		}  else {
+			visitedLocation = apiClient.getUserLocation(user.getUserId());
+
+		}
 		user.addToVisitedLocations(visitedLocation);
 		rewardsService.calculateRewards(user);
 		return visitedLocation;
@@ -86,9 +110,13 @@ public class TourGuideService {
 	public List<VisitedLocation> trackUsersLocation(List<User> users) {
 		List<VisitedLocation> visitedLocations = users.stream().parallel().
 				map(user -> {
-					//logger.debug("getUserLocation starts");
-					VisitedLocation visitedLocation = gpsUtil.getUserLocation(user.getUserId());
-					//logger.debug("getUserLocation ends");
+					VisitedLocation visitedLocation = null ;
+					if (testMode){
+						visitedLocation = gpsUtil.getUserLocation(user.getUserId());
+					}  else {
+						visitedLocation = apiClient.getUserLocation(user.getUserId());
+
+					}
 					user.addToVisitedLocations(visitedLocation);
 					return visitedLocation;
 				} ).collect(Collectors.toList());
@@ -99,10 +127,20 @@ public class TourGuideService {
 	}
 
 	public List<Attraction> getNearByAttractions(VisitedLocation visitedLocation) {
-		return gpsUtil.getAttractions().stream().
+		List<Attraction> attractions = null;
+		if (testMode){
+			attractions = gpsUtil.getAttractions();
+		}  else {
+			attractions = apiClient.getAttractions();;
+
+		}
+
+		return  attractions.stream().
 				sorted(Comparator.comparing(attraction -> rewardsService.getDistance(attraction, visitedLocation.location)))
 				.limit(5)
 				.collect(Collectors.toList());
+
+
 	}
 	
 	/**********************************************************************************

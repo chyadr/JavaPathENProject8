@@ -1,0 +1,8 @@
+FROM adoptopenjdk/openjdk11:jre
+RUN apt-get update && apt-get install
+
+WORKDIR /home/project8
+ADD RewardCentral/build/libs/RewardCentral.jar RewardCentral.jar
+
+EXPOSE 8083
+ENTRYPOINT ["java","-jar","RewardCentral.jar"]

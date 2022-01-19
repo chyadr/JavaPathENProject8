@@ -2,15 +2,17 @@ package tourGuide.service;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-
 import gpsUtil.GpsUtil;
 import gpsUtil.location.Attraction;
 import gpsUtil.location.Location;
 import gpsUtil.location.VisitedLocation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+
 import rewardCentral.RewardCentral;
+import tourGuide.api.ApiClient;
 import tourGuide.tracker.Tracker;
 import tourGuide.user.User;
 import tourGuide.user.UserReward;
@@ -24,12 +26,16 @@ public class RewardsService {
 	private int proximityBuffer = defaultProximityBuffer;
 	private int attractionProximityRange = 200;
 	private final GpsUtil gpsUtil;
+	private final ApiClient apiClient;
 	private final RewardCentral rewardsCentral;
-	private Logger logger = LoggerFactory.getLogger(Tracker.class);
+	@Value("${tourguide.testMode:true}")
+	private boolean testMode=true;
 
 
-	public RewardsService(GpsUtil gpsUtil, RewardCentral rewardCentral) {
+
+	public RewardsService(GpsUtil gpsUtil, ApiClient apiClient, RewardCentral rewardCentral) {
 		this.gpsUtil = gpsUtil;
+		this.apiClient = apiClient;
 		this.rewardsCentral = rewardCentral;
 	}
 	
@@ -43,19 +49,29 @@ public class RewardsService {
 	
 	public void calculateRewards(User user) {
 		List<VisitedLocation> userLocations = user.getVisitedLocations();
-		List<Attraction> attractions = gpsUtil.getAttractions();
+		List<Attraction> attractions = null;
+		if(testMode){
+			gpsUtil.getAttractions();
+		}else {
+			attractions = apiClient.getAttractions();
+		}
 
+
+	List<Attraction> finalAttractions = attractions;
 		userLocations.
 				forEach(ul -> {
-					attractions.stream().
+					finalAttractions.stream().
 							filter(attraction -> user.getUserRewards().stream().
 									noneMatch(r -> r.attraction.attractionName.equals(attraction.attractionName)) && nearAttraction(ul, attraction)).
 							forEach(att -> user.addUserReward(new UserReward(ul, att, getRewardPoints(att, user))));});
 	}
 
 	public void calculateRewards(List<User> users) {
-		List<Attraction> attractions = gpsUtil.getAttractions();
-
+		List<Attraction>  attractions;
+		if (testMode) {
+			attractions = gpsUtil.getAttractions();
+		}
+		else {attractions = apiClient.getAttractions();}
 
 		users.stream().parallel().forEach(user -> user.getVisitedLocations().forEach(ul -> attractions.stream().
 				filter(attraction -> user.getUserRewards().stream().
@@ -73,7 +89,10 @@ public class RewardsService {
 	}
 	
 	private int getRewardPoints(Attraction attraction, User user) {
-		return rewardsCentral.getAttractionRewardPoints(attraction.attractionId, user.getUserId());
+		if (testMode){
+			rewardsCentral.getAttractionRewardPoints(attraction.attractionId, user.getUserId());
+		}
+		return  apiClient.getAttractionRewardPoints(attraction.attractionId, user.getUserId());
 	}
 	
 	public double getDistance(Location loc1, Location loc2) {

@@ -1,0 +1,8 @@
+FROM adoptopenjdk/openjdk11:jre
+RUN apt-get update && apt-get install
+
+WORKDIR /home/project8
+ADD GpsUtil/build/libs/GpsUtil.jar GpsUtil.jar
+
+EXPOSE 8081
+ENTRYPOINT ["java","-jar","GpsUtil.jar"]

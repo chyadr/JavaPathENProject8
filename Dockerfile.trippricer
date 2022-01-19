@@ -1,0 +1,8 @@
+FROM adoptopenjdk/openjdk11:jre
+RUN apt-get update && apt-get install
+
+WORKDIR /home/project8
+ADD TripPricer/build/libs/TripPricer.jar TripPricer.jar
+
+EXPOSE 8084
+ENTRYPOINT ["java","-jar","TripPricer.jar"]

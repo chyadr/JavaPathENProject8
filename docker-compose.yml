@@ -1,0 +1,26 @@
+version: "3"
+services:
+  gpsutil:
+    image: gpsutil
+    ports:
+      - 8081:8081
+  tourguide:
+    image: tourguide
+    ports:
+      - 8082:8082
+    depends_on:
+      - gpsutil
+      - rewardcentral
+    environment:
+    - TEST_MODE=false
+    - GPSUTIL_URL=http://gpsutil:8081
+    - REWARD_CENTRAL_URL=http://rewardcentral:8083
+    - TRIP_PRICER_URL=http://trippricer:8084
+  rewardcentral:
+    image: rewardcentral
+    ports:
+      - 8083:8083
+  trippricer:
+    image: trippricer
+    ports:
+      - 8084:8084

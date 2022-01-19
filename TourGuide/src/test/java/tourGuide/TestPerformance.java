@@ -45,10 +45,10 @@ public class TestPerformance {
 	@Test
 	public void highVolumeTrackLocation() {
 		GpsUtil gpsUtil = new GpsUtil();
-		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
+		RewardsService rewardsService = new RewardsService(gpsUtil,null, new RewardCentral());
 		// Users should be incremented up to 100,000, and test finishes within 15 minutes
-		InternalTestHelper.setInternalUserNumber(100000);
-		TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
+		InternalTestHelper.setInternalUserNumber(1000);
+		TourGuideService tourGuideService = new TourGuideService(gpsUtil,null, rewardsService);
 
 		List<User> allUsers = tourGuideService.getAllUsers();
 		
@@ -66,13 +66,13 @@ public class TestPerformance {
 	@Test
 	public void highVolumeGetRewards() {
 		GpsUtil gpsUtil = new GpsUtil();
-		RewardsService rewardsService = new RewardsService(gpsUtil, new RewardCentral());
+		RewardsService rewardsService = new RewardsService(gpsUtil,null, new RewardCentral());
 
 		// Users should be incremented up to 100,000, and test finishes within 20 minutes
 		InternalTestHelper.setInternalUserNumber(100000);
 		StopWatch stopWatch = new StopWatch();
 		stopWatch.start();
-		TourGuideService tourGuideService = new TourGuideService(gpsUtil, rewardsService);
+		TourGuideService tourGuideService = new TourGuideService(gpsUtil, null,rewardsService);
 		
 	    Attraction attraction = gpsUtil.getAttractions().get(0);
 		List<User> allUsers = tourGuideService.getAllUsers();
