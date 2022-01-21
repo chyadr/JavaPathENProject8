@@ -1,5 +1,7 @@
 package com.trippricer.controller;
 
+import com.trippricer.service.ITripPricerService;
+import com.trippricer.service.TripPricerService;
 import dto.PriceInputDTO;
 import org.springframework.web.bind.annotation.*;
 import tripPricer.Provider;
@@ -11,14 +13,16 @@ import java.util.List;
 @RequestMapping("/api")
 public class TripPricerController {
 
-    private final TripPricer tripPricer;
+    private final TripPricerService tripPricerService;
 
-    public TripPricerController() {
-        this.tripPricer = new TripPricer();
+    public TripPricerController(TripPricerService tripPricerService) {
+        this.tripPricerService = tripPricerService;
     }
+
+
     @GetMapping("/price")
     public List<Provider> getPrice(@RequestBody PriceInputDTO priceInputDTO){
-        return tripPricer.getPrice(priceInputDTO.getApiKey(), priceInputDTO.getAttractionId(), priceInputDTO.getAdults(), priceInputDTO.getChildren(), priceInputDTO.getNightsStay(), priceInputDTO.getRewardsPoints());
+        return tripPricerService.getPrice(priceInputDTO.getApiKey(),priceInputDTO.getAttractionId(),priceInputDTO.getAdults() ,priceInputDTO.getChildren(),priceInputDTO.getNightsStay(),priceInputDTO.getRewardsPoints());
     }
 
 }

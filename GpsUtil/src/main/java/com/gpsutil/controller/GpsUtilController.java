@@ -1,5 +1,6 @@
 package com.gpsutil.controller;
 
+import com.gpsutil.service.GpsUtilService;
 import gpsUtil.GpsUtil;
 import gpsUtil.location.Attraction;
 import gpsUtil.location.VisitedLocation;
@@ -16,20 +17,20 @@ import java.util.UUID;
 @RequestMapping("/api")
 public class GpsUtilController {
 
-    private final GpsUtil gpsUtil;
+   private final GpsUtilService gpsUtilService;
 
-    public GpsUtilController() {
-        this.gpsUtil = new GpsUtil();
+    public GpsUtilController(GpsUtilService gpsUtilService) {
+        this.gpsUtilService = gpsUtilService;
     }
 
     @GetMapping("/user-location")
     public VisitedLocation getUserLocation(@RequestBody UUID userId){
-        return gpsUtil.getUserLocation(userId);
+        return gpsUtilService.getUserLocation(userId);
     }
 
     @GetMapping("/attractions")
     public List<Attraction> getAttractions(){
-        return gpsUtil.getAttractions();
+        return gpsUtilService.getAttractions();
     }
 
 }
