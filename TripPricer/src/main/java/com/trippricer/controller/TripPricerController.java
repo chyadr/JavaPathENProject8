@@ -20,7 +20,7 @@ public class TripPricerController {
     }
 
 
-    @GetMapping("/price")
+    @PostMapping("/price")
     public List<Provider> getPrice(@RequestBody PriceInputDTO priceInputDTO){
         return tripPricerService.getPrice(priceInputDTO.getApiKey(),priceInputDTO.getAttractionId(),priceInputDTO.getAdults() ,priceInputDTO.getChildren(),priceInputDTO.getNightsStay(),priceInputDTO.getRewardsPoints());
     }

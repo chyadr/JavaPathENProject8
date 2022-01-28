@@ -17,12 +17,15 @@ public class TourGuideModule {
 	
 	@Bean
 	public RewardsService getRewardsService() {
-		return new RewardsService(getGpsUtil(),null, getRewardCentral());
+		return new RewardsService(getGpsUtil(),null, getRewardCentral(), getTestMode());
 	}
 	
 	@Bean
 	public RewardCentral getRewardCentral() {
 		return new RewardCentral();
 	}
+
+	@Bean
+	public Boolean getTestMode(){return false;}
 	
 }

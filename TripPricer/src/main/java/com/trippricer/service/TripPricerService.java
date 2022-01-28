@@ -13,8 +13,8 @@ import java.util.UUID;
 public class TripPricerService implements ITripPricerService {
     private final TripPricer tripPricer;
 
-    public TripPricerService(TripPricer tripPricer) {
-        this.tripPricer = tripPricer;
+    public TripPricerService() {
+        this.tripPricer =new TripPricer();
     }
 
     @Override

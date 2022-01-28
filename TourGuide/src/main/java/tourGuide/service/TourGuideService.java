@@ -13,7 +13,6 @@ import gpsUtil.location.VisitedLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 
@@ -33,16 +32,17 @@ public class TourGuideService {
 	private final RewardsService rewardsService;
 	private final TripPricer tripPricer = new TripPricer();
 	public final Tracker tracker;
-	@Value("${tourguide.testMode:true}")
-	private boolean testMode =true;
+	boolean testMode=true;
+	private boolean unitTest =false;
 	private final GpsUtil gpsUtil;
 	private final ApiClient apiClient;
 
 
-	public TourGuideService(GpsUtil gpsUtil, ApiClient apiClient, RewardsService rewardsService) {
+	public TourGuideService(GpsUtil gpsUtil, ApiClient apiClient, RewardsService rewardsService, boolean apiCall) {
 		this.gpsUtil = gpsUtil;
 		this.apiClient = apiClient;
 		this.rewardsService = rewardsService;
+		this.unitTest =apiCall;
 		
 		if(testMode) {
 			logger.info("TestMode enabled");
@@ -82,7 +82,7 @@ public class TourGuideService {
 
 		List<Provider> providers;
 
-				if(testMode){
+				if(unitTest){
 					providers = tripPricer.getPrice(tripPricerApiKey, user.getUserId(), user.getUserPreferences().getNumberOfAdults(),
 							user.getUserPreferences().getNumberOfChildren(), user.getUserPreferences().getTripDuration(), cumulatativeRewardPoints);
 				}else {
@@ -96,7 +96,7 @@ public class TourGuideService {
 
 	public VisitedLocation trackUserLocation(User user) {
 		VisitedLocation visitedLocation = null ;
-		if (testMode){
+		if (unitTest){
 			visitedLocation = gpsUtil.getUserLocation(user.getUserId());
 		}  else {
 			visitedLocation = apiClient.getUserLocation(user.getUserId());
@@ -108,27 +108,26 @@ public class TourGuideService {
 	}
 
 	public List<VisitedLocation> trackUsersLocation(List<User> users) {
-		List<VisitedLocation> visitedLocations = users.stream().parallel().
+
+
+		return users.stream().parallel().
 				map(user -> {
-					VisitedLocation visitedLocation = null ;
-					if (testMode){
+					VisitedLocation visitedLocation;
+					if (unitTest){
 						visitedLocation = gpsUtil.getUserLocation(user.getUserId());
 					}  else {
 						visitedLocation = apiClient.getUserLocation(user.getUserId());
 
 					}
 					user.addToVisitedLocations(visitedLocation);
+					rewardsService.calculateRewards(user);
 					return visitedLocation;
 				} ).collect(Collectors.toList());
-
-		rewardsService.calculateRewards(users);
-
-		return visitedLocations;
 	}
 
 	public List<Attraction> getNearByAttractions(VisitedLocation visitedLocation) {
-		List<Attraction> attractions = null;
-		if (testMode){
+		List<Attraction> attractions;
+		if (unitTest){
 			attractions = gpsUtil.getAttractions();
 		}  else {
 			attractions = apiClient.getAttractions();;
@@ -142,6 +141,7 @@ public class TourGuideService {
 
 
 	}
+
 	
 	/**********************************************************************************
 	 * 
@@ -186,5 +186,5 @@ public class TourGuideService {
 		LocalDateTime localDateTime = LocalDateTime.now().minusDays(new Random().nextInt(30));
 	    return Date.from(localDateTime.toInstant(ZoneOffset.UTC));
 	}
-	
+
 }

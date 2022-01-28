@@ -3,7 +3,7 @@ buildscript {
         mavenCentral()
     }
     dependencies {
-        classpath("org.springframework.boot:spring-boot-gradle-plugin:2.1.6.RELEASE")
+        classpath("org.springframework.boot:spring-boot-gradle-plugin:2.4.0")
     }
 }
 
@@ -35,12 +35,20 @@ dependencies {
     implementation(name:'TripPricer', ext:'jar')
     
     testImplementation("junit:junit")
-    testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.1.6.RELEASE'
+    testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '2.4.0'
+    testImplementation group: 'org.springframework.security', name: 'spring-security-test', version: '5.4.1'
+
+}
+
+test {
+    systemProperty "user.country", "fr"
+    systemProperty "user.language", "en"
+    useJUnitPlatform()
 }
 
 
 jacoco {
-    toolVersion = "0.8.4"
+    toolVersion = "0.8.6"
 }
 
 jacocoTestReport {

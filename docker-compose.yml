@@ -11,8 +11,8 @@ services:
     depends_on:
       - gpsutil
       - rewardcentral
+	  - trippricer
     environment:
-    - TEST_MODE=false
     - GPSUTIL_URL=http://gpsutil:8081
     - REWARD_CENTRAL_URL=http://rewardcentral:8083
     - TRIP_PRICER_URL=http://trippricer:8084

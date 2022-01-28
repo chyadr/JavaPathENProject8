@@ -11,8 +11,8 @@ public class RewardCentralService  implements IRewardCentralService{
 
     private final RewardCentral rewardCentral;
 
-    public RewardCentralService(RewardCentral rewardCentral) {
-        this.rewardCentral = rewardCentral;
+    public RewardCentralService() {
+        this.rewardCentral = new RewardCentral();
     }
 
     @Override

@@ -14,7 +14,7 @@ public class RewardCentralController {
         this.rewardCentralService = rewardCentralService;
     }
 
-    @GetMapping("/reward-point")
+    @PostMapping("/reward-point")
     public int getAttractionRewardPoints(@RequestBody AttractionRewardPointsInputDTO attractionRewardPointsInputDTO) {
         return rewardCentralService.getAttractionRewardPoints(attractionRewardPointsInputDTO.getAttractionId(),attractionRewardPointsInputDTO.getUserId());
     }
