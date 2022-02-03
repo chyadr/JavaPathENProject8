@@ -13,14 +13,17 @@ import gpsUtil.location.VisitedLocation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 
-
+import org.springframework.util.CollectionUtils;
 import tourGuide.api.ApiClient;
+import tourGuide.dto.UserPreferenceDTO;
 import tourGuide.helper.InternalTestHelper;
 import tourGuide.tracker.Tracker;
 import tourGuide.user.User;
+import tourGuide.user.UserPreferences;
 import tourGuide.user.UserReward;
 import tripPricer.Provider;
 import tripPricer.TripPricer;
@@ -38,11 +41,11 @@ public class TourGuideService {
 	private final ApiClient apiClient;
 
 
-	public TourGuideService(GpsUtil gpsUtil, ApiClient apiClient, RewardsService rewardsService, boolean apiCall) {
+	public TourGuideService(GpsUtil gpsUtil, ApiClient apiClient, RewardsService rewardsService, boolean unitTest) {
 		this.gpsUtil = gpsUtil;
 		this.apiClient = apiClient;
 		this.rewardsService = rewardsService;
-		this.unitTest =apiCall;
+		this.unitTest =unitTest;
 		
 		if(testMode) {
 			logger.info("TestMode enabled");
@@ -53,13 +56,17 @@ public class TourGuideService {
 		tracker = new Tracker(this);
 		tracker.runTracking();
 	}
-	
+
+
+
+
+
 	public List<UserReward> getUserRewards(User user) {
 		return user.getUserRewards();
 	}
 	
 	public VisitedLocation getUserLocation(User user) {
-		return (user.getVisitedLocations().size() > 0) ?
+		return (user != null && !CollectionUtils.isEmpty(user.getVisitedLocations())) ?
 			user.getLastVisitedLocation() :
 			trackUserLocation(user);
 	}
@@ -187,4 +194,17 @@ public class TourGuideService {
 	    return Date.from(localDateTime.toInstant(ZoneOffset.UTC));
 	}
 
+	public ApiClient getApiClient() {
+		return apiClient;
+	}
+
+	public UserPreferenceDTO addUserPreferences(String userName, UserPreferenceDTO userPreferenceDTO) {
+
+		User user = getUser(userName);
+		UserPreferences userPreferences = new UserPreferences();
+				BeanUtils.copyProperties(userPreferenceDTO,userPreferences);
+		user.setUserPreferences(userPreferences);
+
+		return userPreferenceDTO;
+	}
 }

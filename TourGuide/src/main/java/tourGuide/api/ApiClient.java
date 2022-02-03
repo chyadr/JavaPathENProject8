@@ -31,14 +31,21 @@ public class ApiClient {
         this.restTemplate = restTemplate;
     }
 
-
+    /**
+     * Serve to get user's visited location
+     * @param param
+     * @return
+     */
     public VisitedLocation getUserLocation(UUID param){
-
 
          VisitedLocationDTO response=  restTemplate.postForEntity(gpsUtilUrl +"/api/user-location",param, VisitedLocationDTO.class).getBody();
         return new VisitedLocation(response.getUserId(), new Location(response.getLocation().getLatitude(),response.getLocation().getLongitude()), response.getTimeVisited());
     }
 
+    /**
+     * Serve to get the list of attractions
+     * @return
+     */
     public List<Attraction> getAttractions(){
         AttractionDTO[] response = restTemplate.getForEntity(gpsUtilUrl +"/api/attractions",AttractionDTO[].class).getBody();
 
@@ -46,7 +53,12 @@ public class ApiClient {
 
     }
 
-
+    /**
+     * Serve to get each attraction's reward point
+     * @param attractionId
+     * @param userId
+     * @return
+     */
     public int getAttractionRewardPoints (UUID attractionId,UUID userId){
         AttractionRewardPointsDTO attractionRewardPointsDTO= new AttractionRewardPointsDTO();
         attractionRewardPointsDTO.setAttractionId(attractionId);
@@ -54,6 +66,16 @@ public class ApiClient {
         return restTemplate.postForEntity(rewardCentralUrl +"/api/reward-point",attractionRewardPointsDTO,Integer.class).getBody();
     }
 
+    /**
+     * Serve to get the price relying on the provider
+     * @param apiKey
+     * @param attractionId
+     * @param adults
+     * @param children
+     * @param nightsStay
+     * @param rewardsPoints
+     * @return
+     */
     public  List<Provider> getPrice(String apiKey, UUID attractionId, int adults, int children, int nightsStay, int rewardsPoints){
         PriceDTO priceDTO = new PriceDTO();
         priceDTO.setApiKey(apiKey);priceDTO.setAttractionId(attractionId);

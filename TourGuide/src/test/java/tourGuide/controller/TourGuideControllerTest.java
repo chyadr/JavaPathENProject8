@@ -3,15 +3,10 @@ package tourGuide.controller;
 import com.jsoniter.output.JsonStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
-import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.junit.jupiter.SpringExtension;
 import org.springframework.test.web.servlet.MockMvc;
 import tourGuide.ConstantsTest;
@@ -20,7 +15,6 @@ import tourGuide.service.RewardsService;
 import tourGuide.service.TourGuideService;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyDouble;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -108,8 +102,9 @@ public class TourGuideControllerTest {
     public void givenUserName_whenGetAllVisitedLocation_thenReturnJsonVisitedLocation() throws Exception {
 
         when(tourGuideService.getAllUsers()).thenReturn(ConstantsTest.users);
+        when(apiClient.getUserLocation(any())).thenReturn(ConstantsTest.visitedLocation);
 
-        mvc.perform(get("/getAllVisitedLocation")
+        mvc.perform(get("/getAllUsersLocation")
                         .contentType(MediaType.APPLICATION_FORM_URLENCODED_VALUE))
                 .andExpect(status().isOk());
     }
