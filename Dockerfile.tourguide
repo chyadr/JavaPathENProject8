@@ -1,0 +1,8 @@
+FROM adoptopenjdk/openjdk11
+RUN apt-get update && apt-get install
+
+WORKDIR /home/project8
+ADD /TourGuide/build/libs/TourGuide.jar TourGuide.jar
+
+EXPOSE 8082
+ENTRYPOINT ["java","-jar","TourGuide.jar"]

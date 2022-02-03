@@ -2,28 +2,28 @@ package tourGuide.service;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-
-import com.google.common.collect.Lists;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
 
 import gpsUtil.GpsUtil;
 import gpsUtil.location.Attraction;
 import gpsUtil.location.Location;
 import gpsUtil.location.VisitedLocation;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.springframework.beans.BeanUtils;
+import org.springframework.stereotype.Service;
+
+
+import org.springframework.util.CollectionUtils;
+import tourGuide.api.ApiClient;
+import tourGuide.dto.UserPreferenceDTO;
 import tourGuide.helper.InternalTestHelper;
 import tourGuide.tracker.Tracker;
 import tourGuide.user.User;
+import tourGuide.user.UserPreferences;
 import tourGuide.user.UserReward;
 import tripPricer.Provider;
 import tripPricer.TripPricer;
@@ -31,15 +31,21 @@ import tripPricer.TripPricer;
 @Service
 public class TourGuideService {
 	private Logger logger = LoggerFactory.getLogger(TourGuideService.class);
-	private final GpsUtil gpsUtil;
+
 	private final RewardsService rewardsService;
 	private final TripPricer tripPricer = new TripPricer();
 	public final Tracker tracker;
-	boolean testMode = true;
-	
-	public TourGuideService(GpsUtil gpsUtil, RewardsService rewardsService) {
+	boolean testMode=true;
+	private boolean unitTest =false;
+	private final GpsUtil gpsUtil;
+	private final ApiClient apiClient;
+
+
+	public TourGuideService(GpsUtil gpsUtil, ApiClient apiClient, RewardsService rewardsService, boolean unitTest) {
 		this.gpsUtil = gpsUtil;
+		this.apiClient = apiClient;
 		this.rewardsService = rewardsService;
+		this.unitTest =unitTest;
 		
 		if(testMode) {
 			logger.info("TestMode enabled");
@@ -50,13 +56,17 @@ public class TourGuideService {
 		tracker = new Tracker(this);
 		tracker.runTracking();
 	}
-	
+
+
+
+
+
 	public List<UserReward> getUserRewards(User user) {
 		return user.getUserRewards();
 	}
 	
 	public VisitedLocation getUserLocation(User user) {
-		return (user.getVisitedLocations().size() > 0) ?
+		return (user != null && !CollectionUtils.isEmpty(user.getVisitedLocations())) ?
 			user.getLastVisitedLocation() :
 			trackUserLocation(user);
 	}
@@ -76,39 +86,69 @@ public class TourGuideService {
 	
 	public List<Provider> getTripDeals(User user) {
 		int cumulatativeRewardPoints = user.getUserRewards().stream().mapToInt(UserReward::getRewardPoints).sum();
-		List<Provider> providers = tripPricer.getPrice(tripPricerApiKey, user.getUserId(), user.getUserPreferences().getNumberOfAdults(), 
-				user.getUserPreferences().getNumberOfChildren(), user.getUserPreferences().getTripDuration(), cumulatativeRewardPoints);
+
+		List<Provider> providers;
+
+				if(unitTest){
+					providers = tripPricer.getPrice(tripPricerApiKey, user.getUserId(), user.getUserPreferences().getNumberOfAdults(),
+							user.getUserPreferences().getNumberOfChildren(), user.getUserPreferences().getTripDuration(), cumulatativeRewardPoints);
+				}else {
+					providers = apiClient.getPrice(tripPricerApiKey, user.getUserId(), user.getUserPreferences().getNumberOfAdults(),
+							user.getUserPreferences().getNumberOfChildren(), user.getUserPreferences().getTripDuration(), cumulatativeRewardPoints);
+				}
+
 		user.setTripDeals(providers);
 		return providers;
 	}
-	
+
 	public VisitedLocation trackUserLocation(User user) {
-		VisitedLocation visitedLocation = gpsUtil.getUserLocation(user.getUserId());
+		VisitedLocation visitedLocation = null ;
+		if (unitTest){
+			visitedLocation = gpsUtil.getUserLocation(user.getUserId());
+		}  else {
+			visitedLocation = apiClient.getUserLocation(user.getUserId());
+
+		}
 		user.addToVisitedLocations(visitedLocation);
 		rewardsService.calculateRewards(user);
 		return visitedLocation;
 	}
 
 	public List<VisitedLocation> trackUsersLocation(List<User> users) {
-		List<VisitedLocation> visitedLocations = users.stream().parallel().
+
+
+		return users.stream().parallel().
 				map(user -> {
-					//logger.debug("getUserLocation starts");
-					VisitedLocation visitedLocation = gpsUtil.getUserLocation(user.getUserId());
-					//logger.debug("getUserLocation ends");
+					VisitedLocation visitedLocation;
+					if (unitTest){
+						visitedLocation = gpsUtil.getUserLocation(user.getUserId());
+					}  else {
+						visitedLocation = apiClient.getUserLocation(user.getUserId());
+
+					}
 					user.addToVisitedLocations(visitedLocation);
+					rewardsService.calculateRewards(user);
 					return visitedLocation;
 				} ).collect(Collectors.toList());
-
-		rewardsService.calculateRewards(users);
-
-		return visitedLocations;
 	}
 
 	public List<Attraction> getNearByAttractions(VisitedLocation visitedLocation) {
-		return gpsUtil.getAttractions().stream().
-				filter(attraction -> rewardsService.isWithinAttractionProximity(attraction, visitedLocation.location))
+		List<Attraction> attractions;
+		if (unitTest){
+			attractions = gpsUtil.getAttractions();
+		}  else {
+			attractions = apiClient.getAttractions();;
+
+		}
+
+		return  attractions.stream().
+				sorted(Comparator.comparing(attraction -> rewardsService.getDistance(attraction, visitedLocation.location)))
+				.limit(5)
 				.collect(Collectors.toList());
+
+
 	}
+
 	
 	/**********************************************************************************
 	 * 
@@ -153,5 +193,18 @@ public class TourGuideService {
 		LocalDateTime localDateTime = LocalDateTime.now().minusDays(new Random().nextInt(30));
 	    return Date.from(localDateTime.toInstant(ZoneOffset.UTC));
 	}
-	
+
+	public ApiClient getApiClient() {
+		return apiClient;
+	}
+
+	public UserPreferenceDTO addUserPreferences(String userName, UserPreferenceDTO userPreferenceDTO) {
+
+		User user = getUser(userName);
+		UserPreferences userPreferences = new UserPreferences();
+				BeanUtils.copyProperties(userPreferenceDTO,userPreferences);
+		user.setUserPreferences(userPreferences);
+
+		return userPreferenceDTO;
+	}
 }

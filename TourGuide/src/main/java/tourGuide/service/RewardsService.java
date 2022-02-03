@@ -2,16 +2,14 @@ package tourGuide.service;
 
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Service;
-
 import gpsUtil.GpsUtil;
 import gpsUtil.location.Attraction;
 import gpsUtil.location.Location;
 import gpsUtil.location.VisitedLocation;
+import org.springframework.stereotype.Service;
+
 import rewardCentral.RewardCentral;
-import tourGuide.tracker.Tracker;
+import tourGuide.api.ApiClient;
 import tourGuide.user.User;
 import tourGuide.user.UserReward;
 
@@ -24,13 +22,17 @@ public class RewardsService {
 	private int proximityBuffer = defaultProximityBuffer;
 	private int attractionProximityRange = 200;
 	private final GpsUtil gpsUtil;
+	private final ApiClient apiClient;
 	private final RewardCentral rewardsCentral;
-	private Logger logger = LoggerFactory.getLogger(Tracker.class);
+	private boolean unitTest =false;
 
 
-	public RewardsService(GpsUtil gpsUtil, RewardCentral rewardCentral) {
+
+	public RewardsService(GpsUtil gpsUtil, ApiClient apiClient, RewardCentral rewardCentral, boolean unitTest) {
 		this.gpsUtil = gpsUtil;
+		this.apiClient = apiClient;
 		this.rewardsCentral = rewardCentral;
+		this.unitTest = unitTest;
 	}
 	
 	public void setProximityBuffer(int proximityBuffer) {
@@ -43,37 +45,44 @@ public class RewardsService {
 	
 	public void calculateRewards(User user) {
 		List<VisitedLocation> userLocations = user.getVisitedLocations();
-		List<Attraction> attractions = gpsUtil.getAttractions();
+		List<Attraction> attractions;
+		if(unitTest){
+			attractions = gpsUtil.getAttractions();
+			List<Attraction> finalAttractions = attractions;
+			userLocations.
+					forEach(ul -> {
+						finalAttractions.stream().
+								filter(attraction -> user.getUserRewards().stream().
+										noneMatch(r -> r.attraction.attractionName.equals(attraction.attractionName)) && nearAttraction(ul, attraction)).
+								forEach(att -> user.addUserReward(new UserReward(ul, att, getRewardPoints(att, user))));});
+		}else {
+			attractions = apiClient.getAttractions();
+			List<Attraction> finalAttractions = attractions;
+			userLocations.
+					forEach(ul -> {
+						finalAttractions.stream().
+								filter(attraction -> user.getUserRewards().stream().
+										noneMatch(r -> r.attraction.attractionName.equals(attraction.attractionName))).
+								forEach(att -> user.addUserReward(new UserReward(ul, att, getRewardPoints(att, user))));});
+		}
 
-		userLocations.
-				forEach(ul -> {
-					attractions.stream().
-							filter(attraction -> user.getUserRewards().stream().
-									noneMatch(r -> r.attraction.attractionName.equals(attraction.attractionName)) && nearAttraction(ul, attraction)).
-							forEach(att -> user.addUserReward(new UserReward(ul, att, getRewardPoints(att, user))));});
+
+
 	}
 
-	public void calculateRewards(List<User> users) {
-		List<Attraction> attractions = gpsUtil.getAttractions();
-
-
-		users.stream().parallel().forEach(user -> user.getVisitedLocations().forEach(ul -> attractions.stream().
-				filter(attraction -> user.getUserRewards().stream().
-						noneMatch(r -> r.attraction.attractionName.equals(attraction.attractionName)) && nearAttraction(ul, attraction)).
-				forEach(att -> user.addUserReward(new UserReward(ul, att, getRewardPoints(att, user))))));
-
-	}
-	
 	public boolean isWithinAttractionProximity(Attraction attraction, Location location) {
 		return !(getDistance(attraction, location) > attractionProximityRange);
 	}
-	
+
 	private boolean nearAttraction(VisitedLocation visitedLocation, Attraction attraction) {
 		return !(getDistance(attraction, visitedLocation.location) > proximityBuffer);
 	}
 	
 	private int getRewardPoints(Attraction attraction, User user) {
-		return rewardsCentral.getAttractionRewardPoints(attraction.attractionId, user.getUserId());
+		if (unitTest){
+			return rewardsCentral.getAttractionRewardPoints(attraction.attractionId, user.getUserId());
+		}
+		return  apiClient.getAttractionRewardPoints(attraction.attractionId, user.getUserId());
 	}
 	
 	public double getDistance(Location loc1, Location loc2) {
